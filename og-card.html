@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Aref+Ruqaa:wght@700&family=Cairo:wght@400;600&family=Montserrat:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --gold: #e7c987; --gold-bright: #f4dca0; --rose: #e3a6a0; --moonlight: #f3eedf;
+    --moon-dim: rgba(243,238,223,0.7);
+  }
+  body { margin: 0; }
+  .card {
+    position: relative; width: 1200px; height: 630px; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; color: var(--moonlight);
+    background:
+      radial-gradient(120% 90% at 50% -10%, #20284f 0%, transparent 55%),
+      radial-gradient(80% 62% at 14% 12%, rgba(112,82,165,0.30), transparent 52%),
+      radial-gradient(85% 60% at 88% 92%, rgba(152,76,88,0.24), transparent 55%),
+      radial-gradient(58% 42% at 50% 38%, rgba(231,201,135,0.10), transparent 60%),
+      linear-gradient(180deg, #090c20 0%, #0c1234 48%, #070918 100%);
+    font-family: 'Fraunces', serif;
+  }
+  .stars { position: absolute; inset: 0; }
+  .stars i {
+    position: absolute; background: var(--moonlight); border-radius: 50%;
+    width: 2px; height: 2px; opacity: 0.5;
+  }
+  .stars i.g { background: var(--gold-bright); }
+  .frame {
+    position: absolute; inset: 36px; border: 1px solid rgba(231,201,135,0.28); border-radius: 14px;
+  }
+  .moon { color: var(--gold); margin-bottom: 22px; }
+  .eyebrow {
+    font-family: 'Montserrat', sans-serif; text-transform: uppercase;
+    letter-spacing: 0.42em; font-size: 17px; color: var(--gold); margin-bottom: 30px;
+  }
+  .ar {
+    font-family: 'Aref Ruqaa', serif; direction: rtl; font-weight: 700;
+    font-size: 118px; line-height: 1.1; color: var(--gold);
+    text-shadow: 0 0 34px rgba(231,201,135,0.4); margin-bottom: 6px;
+  }
+  .ar .w { color: var(--rose); }
+  .en {
+    font-family: 'Fraunces', serif; font-weight: 300; font-size: 52px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--moonlight);
+  }
+  .en .amp { color: var(--gold); font-style: italic; text-transform: none; }
+  .divider { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 30px 0 22px; color: var(--gold); width: 360px; }
+  .divider::before, .divider::after { content: ""; height: 1px; flex: 1; background: linear-gradient(90deg, transparent, var(--gold)); }
+  .divider::after { background: linear-gradient(90deg, var(--gold), transparent); }
+  .meta { font-family: 'Montserrat', sans-serif; letter-spacing: 0.22em; text-transform: uppercase; font-size: 19px; color: var(--gold-bright); }
+  .venue { font-family: 'Cairo', sans-serif; direction: rtl; font-size: 22px; color: var(--moon-dim); margin-top: 14px; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="stars" id="stars"></div>
+    <div class="frame"></div>
+
+    <div class="moon">
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="currentColor" opacity="0.92"/></svg>
+    </div>
+    <div class="eyebrow">An evening under the stars</div>
+    <div class="ar">محمد <span class="w">و</span> زينة</div>
+    <div class="en">Mohamed <span class="amp">&amp;</span> Zaina</div>
+    <div class="divider">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0l1.6 5.2L15 6.4l-4.2 3.4L12 16 8 12.4 4 16l1.2-6.2L1 6.4l5.4-1.2z"/></svg>
+    </div>
+    <div class="meta">Saturday · August 29, 2026 · 7:00 PM</div>
+    <div class="venue">قاعة سيليا · القاهرة</div>
+  </div>
+
+  <script>
+    // scatter stars
+    var s = document.getElementById('stars');
+    for (var i = 0; i < 90; i++) {
+      var d = document.createElement('i');
+      if (Math.random() > 0.82) d.className = 'g';
+      var sz = (Math.random() * 1.6 + 0.6).toFixed(1);
+      d.style.width = d.style.height = sz + 'px';
+      d.style.left = (Math.random() * 100) + '%';
+      d.style.top = (Math.random() * 100) + '%';
+      d.style.opacity = (Math.random() * 0.5 + 0.2).toFixed(2);
+      s.appendChild(d);
+    }
+    window.__ready = false;
+    document.fonts.ready.then(function () { setTimeout(function () { window.__ready = true; }, 250); });
+  </script>
+</body>
+</html>
