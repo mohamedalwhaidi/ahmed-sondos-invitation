@@ -408,7 +408,7 @@
     <svg width="16" height="22" viewBox="0 0 16 22" fill="none"><rect x="1" y="1" width="14" height="20" rx="7" stroke="currentColor"/><circle cx="8" cy="7" r="2" fill="currentColor"><animate attributeName="cy" values="7;13;7" dur="1.6s" repeatCount="indefinite"/></circle></svg>
   </div>
 
-  <button type="button" id="music-toggle" class="music-toggle" aria-pressed="false" aria-label="Play ambient oud music — تشغيل موسيقى العود">
+  <button type="button" id="music-toggle" class="music-toggle" aria-pressed="false" aria-label="Toggle wedding music — تشغيل الموسيقى">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M9 18V5l10-2v11"/><circle cx="6" cy="18" r="2.6"/><circle cx="16" cy="16" r="2.6"/></svg>
     <span class="m-label">Music</span>
   </button>
@@ -634,6 +634,15 @@
     opened = true;
     lantern.classList.add("lit");
     page.removeAttribute("inert");
+    // start the wedding music — this runs inside the click gesture, which
+    // is what browsers require to allow audio to begin.
+    try {
+      audio.start();
+      var mtb = document.getElementById("music-toggle");
+      mtb.classList.add("on");
+      mtb.setAttribute("aria-pressed", "true");
+      mtb.querySelector(".m-label").textContent = "Playing";
+    } catch (e) {}
     setTimeout(function () {
       gate.classList.add("lifted");
       body.classList.add("revealed");
@@ -726,57 +735,84 @@
   });
   render();
 
-  /* ---------- Ambient oud (Web Audio, self-contained) ---------- */
+  /* ---------- Classical wedding music — Pachelbel's Canon in D ----------
+     Public-domain composition, synthesised as a warm looping harp/strings
+     arrangement. No audio file needed; starts on the lantern tap (the user
+     gesture browsers require), so it begins as the invitation opens. */
   var audio = (function () {
-    var ctx, master, lp, delay, fb, timer, playing = false, lastIdx = -1;
-    // Hijaz-flavoured set on D — warm, Middle-Eastern colour
-    var scale = [146.83, 155.56, 185.00, 196.00, 220.00, 233.08, 293.66];
+    var ctx, master, lp, delay, fb, playing = false, running = false, schedTimer, nextTime, bar = 0;
+    var BEAT = 0.27;          // eighth-note
+    var BAR = BEAT * 8;       // one chord per bar
+    // The Canon in D ground progression: D · A · Bm · F#m · G · D · G · A
+    // each entry = bass note + a 4-note arpeggio (midi numbers)
+    var prog = [
+      { bass: 50, arp: [62, 66, 69, 74] }, // D
+      { bass: 45, arp: [57, 61, 64, 69] }, // A
+      { bass: 47, arp: [59, 62, 66, 71] }, // Bm
+      { bass: 42, arp: [54, 57, 61, 66] }, // F#m
+      { bass: 43, arp: [55, 59, 62, 67] }, // G
+      { bass: 50, arp: [62, 66, 69, 74] }, // D
+      { bass: 43, arp: [55, 59, 62, 67] }, // G
+      { bass: 45, arp: [57, 61, 64, 69] }  // A
+    ];
+    function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
     function build() {
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 0.0001;
-      lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2100; lp.Q.value = 0.6;
-      delay = ctx.createDelay(); delay.delayTime.value = 0.34;
-      fb = ctx.createGain(); fb.gain.value = 0.30;
+      lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3200;
+      delay = ctx.createDelay(); delay.delayTime.value = 0.28;
+      fb = ctx.createGain(); fb.gain.value = 0.22;          // gentle hall reverb
       delay.connect(fb); fb.connect(delay);
       lp.connect(master); lp.connect(delay); delay.connect(master);
       master.connect(ctx.destination);
     }
-    function pluck(freq, when, gain) {
+    function voice(freq, t, dur, gain, type) {
       var g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, when);
-      g.gain.linearRampToValueAtTime(gain, when + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, when + 1.7);
-      var o1 = ctx.createOscillator(); o1.type = "triangle"; o1.frequency.value = freq;
-      var o2 = ctx.createOscillator(); o2.type = "triangle"; o2.frequency.value = freq * 2.001;
-      var g2 = ctx.createGain(); g2.gain.value = 0.28; o2.connect(g2);
-      o1.connect(g); g2.connect(g); g.connect(lp);
-      o1.start(when); o2.start(when); o1.stop(when + 1.8); o2.stop(when + 1.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.03);
+      g.gain.setTargetAtTime(0.0001, t + dur * 0.5, dur * 0.4);
+      var o = ctx.createOscillator(); o.type = type || "triangle"; o.frequency.value = freq;
+      o.connect(g); g.connect(lp);
+      o.start(t); o.stop(t + dur + 0.2);
     }
-    function schedule() {
-      var idx; do { idx = Math.floor(Math.random() * scale.length); } while (idx === lastIdx && scale.length > 1);
-      lastIdx = idx;
-      var now = ctx.currentTime + 0.05;
-      pluck(scale[idx], now, 0.16);
-      if (Math.random() < 0.35) pluck(scale[(idx + 2) % scale.length], now + 0.2, 0.10);
-      timer = setTimeout(schedule, 1900 + Math.random() * 2400);
+    function scheduleBar(idx, t) {
+      var c = prog[idx];
+      voice(mtof(c.bass), t, BAR * 0.98, 0.14, "sine");      // cello-like bass
+      voice(mtof(c.arp[0]), t, BAR * 0.98, 0.045, "sine");   // sustained pad (root)
+      voice(mtof(c.arp[2]), t, BAR * 0.98, 0.040, "sine");   // sustained pad (fifth)
+      for (var i = 0; i < 8; i++) {                          // flowing harp arpeggio
+        var n = i < 4 ? c.arp[i] : c.arp[i - 4] + 12;
+        voice(mtof(n), t + i * BEAT, BEAT * 1.7, i < 4 ? 0.10 : 0.07, "triangle");
+      }
+    }
+    function tick() {
+      while (nextTime < ctx.currentTime + 1.2) {
+        scheduleBar(bar % prog.length, nextTime);
+        bar++; nextTime += BAR;
+      }
+      schedTimer = setTimeout(tick, 250);
+    }
+    function start() {
+      if (!ctx) build();
+      if (ctx.state === "suspended") ctx.resume();
+      playing = true;
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setTargetAtTime(0.32, ctx.currentTime, 0.9);
+      if (!running) { running = true; bar = 0; nextTime = ctx.currentTime + 0.15; tick(); }
+      return true;
+    }
+    function stop() {
+      playing = false;
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.5);
+      return false;
     }
     return {
-      toggle: function () {
-        if (!ctx) build();
-        if (ctx.state === "suspended") ctx.resume();
-        playing = !playing;
-        if (playing) {
-          master.gain.cancelScheduledValues(ctx.currentTime);
-          master.gain.setTargetAtTime(0.5, ctx.currentTime, 0.7);
-          schedule();
-        } else {
-          master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.5);
-          clearTimeout(timer);
-        }
-        return playing;
-      }
+      start: start, stop: stop,
+      toggle: function () { if (!ctx || ctx.state === "suspended") { /* ensure gesture */ } return playing ? stop() : start(); },
+      isPlaying: function () { return playing; }
     };
   })();
 
